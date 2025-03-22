@@ -27,13 +27,49 @@ exports.addIncome= async(req,res)=>{
     };
 }
 
-//Add Expense
-exports.getAllIncome= async(req,res)=>{}
+// Get all income sources
+exports.getAllIncome = async (req, res) => {
+  try {
+    const allIncome = await Income.find().sort({ date: -1 });
+    console.log("Fetched Income:", allIncome);  // Log income to the server console for debugging
+    res.json(allIncome);
+  } catch (error) {
+    console.error("Error fetching income records:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
-//Delete Income
-exports.deleteIncome= async(req,res)=>{}
+// Delete income source
+exports.deleteIncome = async (req, res) => {
+  try {
+    await Income.findByIdAndDelete(req.params.id);
+    res.json({ message: "Income source deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
-//Update Income
-exports.downloadIncomeExcel= async(req,res)=>{}
+// Download income data as Excel
+exports.downloadIncomeExcel = async (req, res) => {
+  try {
+    const allIncome = await Income.find().sort({ date: -1 });
+
+    const data = allIncome.map((item) => ({
+      Source: item.source,
+      Amount: item.amount,
+      Date: item.date,
+    }));
+
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.json_to_sheet(data);
+    xlsx.utils.book_append_sheet(wb, ws, "Income");
+    xlsx.writeFile(wb, 'income_details.xlsx');
+    res.download('income_details.xlsx');
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
 
