@@ -5,7 +5,7 @@ import {XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,Area,AreaChart
 const CustomLineChart = ({data}) => {
 
 
-    const CustomTooltip = ({ active, payload} ) => {
+    const CustomTooltip = ({ active, payload } ) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-white shadow-md rounded-lg p-2 border border-gray-300">
