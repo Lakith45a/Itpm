@@ -1,6 +1,7 @@
 const xlsx = require('xlsx');
 const Expense = require('../models/Expense');
 
+
 //  Add Expense Source
 exports.addExpense = async (req, res) => {
     const userId = req.user.id;
@@ -22,6 +23,7 @@ exports.addExpense = async (req, res) => {
         await newExpense.save();
         res.status(200).json(newExpense);
     }catch(error){
+        
         res.status(500).json({msg: 'Server error'});
     }
 }

@@ -1,11 +1,12 @@
 const express = require('express');
 const {addExpense, getAllExpenses, deleteExpense,downloadExpensesExcel} = require('../controllers/expenseController');
+const { protect } = require('../middleware/authmiddleware');
 
 const router = express.Router();
 
-router.post('/add', addExpense);
-router.get('/all', getAllExpenses);
-router.delete('/:id', deleteExpense);
-router.get('/download', downloadExpensesExcel);
+router.post('/add', protect, addExpense);
+router.get('/get', protect,getAllExpenses);
+router.delete('/:id', protect, deleteExpense);
+router.get('/downloadexcel', protect, downloadExpensesExcel);
 
 module.exports = router;
