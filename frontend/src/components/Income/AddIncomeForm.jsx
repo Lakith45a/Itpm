@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import Input from '../Inputs/Input';
-import EmojiPickerPopUp from '../EmojiPickerPopup';
+import Input from '../Inputs/Input'
+import EmojiPickerPopUp from '../EmojiPickerPopup'
+import toast from 'react-hot-toast'
 
 function AddIncomeForm({onAddIncome}) {
 
@@ -11,7 +12,16 @@ function AddIncomeForm({onAddIncome}) {
         icon: '',
     });
 
-    const handleChange = (key, value) => setIncome({...income, [key]: value});
+    const handleChange = (key, value) => {
+        if (key === 'source' && value) {
+            // Only allow letters and spaces
+            if (!/^[a-zA-Z\s]*$/.test(value)) {
+                toast.error('Income source must contain only letters');
+                return;
+            }
+        }
+        setIncome({...income, [key]: value});
+    };
 
   return (
     <div>

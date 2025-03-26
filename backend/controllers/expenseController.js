@@ -1,30 +1,64 @@
 const xlsx = require('xlsx');
 const Expense = require('../models/Expense');
 
-
-//  Add Expense Source
+// Add Expense Source
 exports.addExpense = async (req, res) => {
     const userId = req.user.id;
 
-    try{
-        const{icon, category, amount, date} = req.body;
-        //validation:check if all fields are filled
-        if( !category || !amount || !date){
-            return res.status(400).json({msg: 'All fields are required'});
+    try {
+        const { icon, category, amount, date } = req.body;
+        
+        // Enhanced validation
+        if (!category?.trim() || !amount || !date) {
+            return res.status(400).json({ msg: 'All fields are required' });
         }
+
+        // Validate category format
+        if (!/^[a-zA-Z\s]*$/.test(category)) {
+            return res.status(400).json({ msg: 'Category must contain only letters' });
+        }
+
+        // Validate amount
+        const numAmount = Number(amount);
+        if (isNaN(numAmount) || numAmount <= 0) {
+            return res.status(400).json({ msg: 'Amount must be a positive number' });
+        }
+
+        // Check monthly total with error handling
+        let currentMonthTotal = 0;
+        try {
+            currentMonthTotal = await Expense.getCurrentMonthTotal(userId);
+        } catch (error) {
+            console.error('Monthly total calculation error:', error);
+        }
+
+        const newTotal = currentMonthTotal + numAmount;
+        const monthlyLimit = 5000;
 
         const newExpense = new Expense({
             userId,
             icon,
-            category,
-            amount,
+            category: category.trim(),
+            amount: numAmount,
             date: new Date(date)
         });
-        await newExpense.save();
-        res.status(200).json(newExpense);
-    }catch(error){
         
-        res.status(500).json({msg: 'Server error'});
+        await newExpense.save();
+        
+        res.status(200).json({
+            expense: newExpense,
+            warningMsg: newTotal > monthlyLimit ? 'Warning: Monthly limit exceeded!' : null,
+            monthlyTotal: newTotal,
+            monthlyLimit
+        });
+    } catch (error) {
+        console.error('Add expense error:', error);
+        res.status(500).json({ 
+            msg: error.name === 'ValidationError' 
+                ? 'Invalid input data' 
+                : 'Server error',
+            error: error.message 
+        });
     }
 }
 
@@ -56,19 +90,49 @@ exports.downloadExpensesExcel = async (req, res) => {
     try {
         const expenses = await Expense.find({userId}).sort({date: -1});
         
-        //prepare data for excel
+        // Prepare data for excel
         const data = expenses.map((item) => ({
             Category: item.category,
             Amount: item.amount,
-            Date: item.date
+            Date: new Date(item.date).toLocaleDateString(),
         }));
 
+        // Create workbook and worksheet
         const wb = xlsx.utils.book_new();
         const ws = xlsx.utils.json_to_sheet(data);
         xlsx.utils.book_append_sheet(wb, ws, 'Expenses');
-        res.download("expense_details.xlsx");
+
+        // Generate buffer
+        const excelBuffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        // Set headers for file download
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=expense_report.xlsx');
+        
+        // Send buffer
+        res.send(excelBuffer);
     }
     catch (error) {
-        res.status(500).json({msg: 'Server error'});
+        console.error('Excel generation error:', error);
+        res.status(500).json({msg: 'Error generating excel file'});
+    }
+};
+
+// Add new endpoint to get monthly stats
+exports.getMonthlyStats = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const currentMonthTotal = await Expense.getCurrentMonthTotal(userId);
+        const monthlyLimit = 5000;
+        const percentageUsed = (currentMonthTotal / monthlyLimit) * 100;
+
+        res.json({
+            currentMonthTotal,
+            monthlyLimit,
+            percentageUsed,
+            remaining: monthlyLimit - currentMonthTotal
+        });
+    } catch (error) {
+        res.status(500).json({ msg: 'Error fetching monthly stats' });
     }
 };

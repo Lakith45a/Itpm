@@ -1,6 +1,6 @@
+const xlsx = require('xlsx');
 const User = require('../models/User');
 const Income = require('../models/Income');
-
 
 //Add Income Source
 exports.addIncome= async(req,res)=>{
@@ -29,9 +29,9 @@ exports.addIncome= async(req,res)=>{
 
 // Get all income sources
 exports.getAllIncome = async (req, res) => {
+  const userId = req.user.id;
   try {
-    const allIncome = await Income.find().sort({ date: -1 });
-    console.log("Fetched Income:", allIncome);  // Log income to the server console for debugging
+    const allIncome = await Income.find({ userId }).sort({ date: -1 });
     res.json(allIncome);
   } catch (error) {
     console.error("Error fetching income records:", error);
@@ -52,24 +52,35 @@ exports.deleteIncome = async (req, res) => {
 
 // Download income data as Excel
 exports.downloadIncomeExcel = async (req, res) => {
-  try {
-    const allIncome = await Income.find().sort({ date: -1 });
+    const userId = req.user.id;
+    try {
+        const incomes = await Income.find({ userId }).sort({ date: -1 });
+        
+        if (!incomes || incomes.length === 0) {
+            return res.status(404).json({ msg: 'No income records found' });
+        }
 
-    const data = allIncome.map((item) => ({
-      Source: item.source,
-      Amount: item.amount,
-      Date: item.date,
-    }));
+        const data = incomes.map((item) => ({
+            Source: item.source,
+            Amount: item.amount,
+            Date: new Date(item.date).toLocaleDateString(),
+        }));
 
-    const wb = xlsx.utils.book_new();
-    const ws = xlsx.utils.json_to_sheet(data);
-    xlsx.utils.book_append_sheet(wb, ws, "Income");
-    xlsx.writeFile(wb, 'income_details.xlsx');
-    res.download('income_details.xlsx');
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
+        const wb = xlsx.utils.book_new();
+        const ws = xlsx.utils.json_to_sheet(data);
+        xlsx.utils.book_append_sheet(wb, ws, 'Income');
+
+        const excelBuffer = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=income_report.xlsx');
+        
+        res.send(excelBuffer);
+    }
+    catch (error) {
+        console.error('Excel generation error:', error);
+        res.status(500).json({ msg: 'Error generating excel file' });
+    }
 };
 
 

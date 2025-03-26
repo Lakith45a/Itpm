@@ -100,7 +100,7 @@ const Expense = () => {
     }
   }
 
-  // ✅ handle download expense details (you can implement it later)
+  // ✅ handle download expense details
   const handleDownloadExpenseDetails = () => {}
 
   useEffect(() => {
